@@ -1,8 +1,13 @@
 package main
 
 import (
+	"crypto/md5"
+	"crypto/sha1"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"hash"
 	"io"
 	"io/ioutil"
 	"log"
@@ -26,7 +31,7 @@ type hashAlgorithm struct {
 
 type filter struct {
 	Description  string        `json:"description"`
-	LastModified string        `json:"last_modified"`
+	LastModified time.Time     `json:"last_modified"`
 	Hash         hashAlgorithm `json:"hash,omitempty"`
 	MD5          string        `json:"md5,omitempty"`
 	SHA1         string        `json:"sha1,omitempty"`
@@ -145,8 +150,19 @@ func getMetadata() map[string]filter {
 	return metadata
 }
 
-func hasher(hashAlgorithm string) {
-	return
+func getHasher(hashAlgorithm string) hash.Hash {
+	var hasher hash.Hash
+	switch hashAlgorithm {
+	case "md5":
+		hasher = md5.New()
+	case "sha1":
+		hasher = sha1.New()
+	case "sha256":
+		hasher = sha256.New()
+	default:
+		log.Fatalf("Invalid hash algorithm: %s", hashAlgorithm)
+	}
+	return hasher
 }
 
 func currentDir() string {
@@ -172,13 +188,22 @@ func getInstalled(hashAlg string) map[string]filter {
 			log.Fatal(err)
 		}
 		for _, file := range fileInfo {
+			f, err := os.Open(file.Name())
+			if err != nil {
+				log.Fatal(err)
+			}
+			defer f.Close()
+			hasher := getHasher(hashAlg)
+			if _, err := io.Copy(hasher, f); err != nil {
+				log.Fatal(err)
+			}
 			var hash = hashAlgorithm{
 				Alg:    hashAlg,
-				Digest: "",
+				Digest: hex.EncodeToString(hasher.Sum(nil)),
 			}
 			installed[file.Name()] = filter{
 				Description:  "",
-				LastModified: "",
+				LastModified: file.ModTime(),
 				Hash:         hash,
 			}
 		}
@@ -307,7 +332,28 @@ func fetchFilter(target string) {
 }
 
 func updateFilters() {
-	return
+	config := getConfig()
+	installed := getInstalled(config.HashAlg)
+	metadata := updateMetadata(config.Repo)
+	var keys []string
+	for k := range installed {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, target := range keys {
+		_, inMetadata := metadata[target]
+		if inMetadata {
+			here := installed[target]
+			there := metadata[target]
+			diff := there.LastModified.Sub(here.LastModified)
+			if (diff > 0) && (there.Hash.Digest != here.Hash.Digest) {
+				fmt.Printf("Updating %s...\n", target)
+				downloadFilter(target)
+				updateInstalled(target)
+				fmt.Print("Done.\n")
+			}
+		}
+	}
 }
 
 func filters(args []string) {
