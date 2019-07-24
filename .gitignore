@@ -13,3 +13,6 @@
 
 # Config files
 *.json
+
+# Filters
+filters/
