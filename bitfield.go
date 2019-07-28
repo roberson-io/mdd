@@ -6,11 +6,11 @@ import (
 
 // Position represents a bit's location within the byte slice.
 type Position struct {
-	Byte uint
-	Bit  uint
+	Byte int
+	Bit  int
 }
 
-// BitField Implements bitfields for Bloom filters
+// BitField implements bitfields for Bloom filters
 type BitField struct {
 	Size     int
 	Bitfield []byte
@@ -25,9 +25,9 @@ type BitField struct {
 // The 100th bit of a bytearray will be 4 bits into the 12th byte:
 //     >>> bitfield.getpos(100)
 //     Position(byte=12, bit=4)
-func (bf BitField) GetPos(position int) Position {
-	var bytepos = uint(math.Ceil(float64(position)/8.0)) - 1
-	var bitpos = uint(position % 8)
+func (bf *BitField) GetPos(position int) Position {
+	var bytepos = int(math.Ceil(float64(position)/8.0)) - 1
+	var bitpos = int(position % 8)
 	if bitpos != 0 {
 		bitpos = 8 - bitpos
 	}
@@ -38,33 +38,33 @@ func (bf BitField) GetPos(position int) Position {
 }
 
 // SetBit sets the bit at specified position to 1.
-func (bf BitField) SetBit(position int) {
+func (bf *BitField) SetBit(position int) {
 	pos := bf.GetPos(position)
-	bf.Bitfield[pos.Byte] |= (0x01 << pos.Bit) & 0xff
+	bf.Bitfield[pos.Byte] |= (0x01 << uint(pos.Bit)) & 0xff
 }
 
 // UnsetBit sets the bit at specified position to 0.
-func (bf BitField) UnsetBit(position int) {
+func (bf *BitField) UnsetBit(position int) {
 	pos := bf.GetPos(position)
-	bf.Bitfield[pos.Byte] |= ^(0x01 << pos.Bit) & 0xff
+	bf.Bitfield[pos.Byte] |= ^(0x01 << uint(pos.Bit)) & 0xff
 }
 
 // GetBit retrieves the contents of a bit at a specific location.
-func (bf BitField) GetBit(position int) bool {
+func (bf *BitField) GetBit(position int) bool {
 	pos := bf.GetPos(position)
-	contents := bf.Bitfield[pos.Byte] & ((0x01 << pos.Bit) & 0xff)
+	contents := bf.Bitfield[pos.Byte] & ((0x01 << uint(pos.Bit)) & 0xff)
 	return !(contents == 0)
 }
 
 // Zero sets all bits to zero.
-func (bf BitField) Zero() {
+func (bf *BitField) Zero() {
 	for _, position := range bf.Bitfield {
 		bf.Bitfield[position] = 0x00
 	}
 }
 
 // One sets all bits to one.
-func (bf BitField) One() {
+func (bf *BitField) One() {
 	for _, position := range bf.Bitfield {
 		bf.Bitfield[position] = 0xff
 	}

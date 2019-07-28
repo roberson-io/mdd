@@ -6,6 +6,7 @@ import (
 	"log"
 	"math"
 	"os"
+	"path/filepath"
 
 	"github.com/roberson-io/mmh3"
 )
@@ -55,6 +56,7 @@ func NewBloomFilter(expectedItems int, fpRate float64) *BloomFilter {
 	bf.Size = idealSize(expectedItems, fpRate)
 	bf.HashCount = idealHashCount(bf.Size, expectedItems)
 	var filter BitField
+	filter.Bitfield = make([]byte, bf.ByteSize)
 	bf.Filter = filter
 	bf.ByteSize = byteSize(bf.Size)
 	bf.ByteSizeHuman = byteSizeHuman(bf.Size)
@@ -72,7 +74,7 @@ type BloomFilter struct {
 }
 
 // Add adds an element to the filter.
-func (bf BloomFilter) Add(element string) {
+func (bf *BloomFilter) Add(element string) {
 	for seed := 0; seed < bf.HashCount; seed++ {
 		key := []byte(element)
 		result := int(binary.LittleEndian.Uint32(
@@ -83,7 +85,7 @@ func (bf BloomFilter) Add(element string) {
 }
 
 // Lookup checks if an element exists in the filter.
-func (bf BloomFilter) Lookup(element string) bool {
+func (bf *BloomFilter) Lookup(element string) bool {
 	for seed := 0; seed < bf.HashCount; seed++ {
 		key := []byte(element)
 		result := int(binary.LittleEndian.Uint32(
@@ -97,7 +99,7 @@ func (bf BloomFilter) Lookup(element string) bool {
 }
 
 // Save saves the filter's current state to a file.
-func (bf BloomFilter) Save(path string) {
+func (bf *BloomFilter) Save(path string) {
 	f, err := os.Create(path)
 	if err != nil {
 		log.Fatal(err)
@@ -116,7 +118,7 @@ func (bf BloomFilter) Save(path string) {
 }
 
 // Load loads a saved filter.
-func (bf BloomFilter) Load(path string) {
+func (bf *BloomFilter) Load(path string) {
 	f, err := os.Open(path)
 	if err != nil {
 		log.Fatal(err)
@@ -129,6 +131,8 @@ func (bf BloomFilter) Load(path string) {
 		log.Fatal(err)
 	}
 	bf.Size = int(binary.LittleEndian.Uint64(sizeBytes))
+	bf.ByteSize = byteSize(bf.Size)
+	bf.ByteSizeHuman = byteSizeHuman(bf.Size)
 
 	hcBytes := make([]byte, 16)
 	_, err = f.Read(hcBytes)
@@ -137,10 +141,86 @@ func (bf BloomFilter) Load(path string) {
 	}
 	bf.HashCount = int(binary.LittleEndian.Uint64(hcBytes))
 
-	var bitfield []byte
+	bitfield := make([]byte, bf.ByteSize)
 	_, err = f.Read(bitfield)
 	if err != nil {
 		log.Fatal(err)
 	}
+	bf.Filter.Size = bf.Size
 	bf.Filter.Bitfield = bitfield
+}
+
+// CalculateHashes calculates MD5 hashes of all files within a
+// directory, adding them to a Bloom filter.
+func (bf *BloomFilter) CalculateHashes(path string) {
+	info, err := os.Stat(path)
+	if err != nil {
+		if !(os.IsPermission(err)) {
+			log.Fatal(err)
+		}
+	}
+	if info.Mode().IsRegular() {
+		digest := md5File(path)
+		if digest != "" {
+			fmt.Printf("  %s    %s\n", path, digest)
+		}
+		return
+	}
+	err = filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			fmt.Printf("Error accessing path %q calculating hashes: %v\n", path, err)
+			return err
+		}
+		// We only care about files.
+		if info.Mode().IsRegular() {
+			digest := md5File(path)
+			if digest != "" {
+				fmt.Printf("  %s    %s\n", path, digest)
+				bf.Add(digest)
+			} else {
+				fmt.Print("Permission Denied\n")
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+// LookupHashes determines if files within a directory have
+// hashes within the Bloom filter.
+func (bf *BloomFilter) LookupHashes(path string) {
+	info, err := os.Stat(path)
+	if err != nil {
+		if !(os.IsPermission(err)) {
+			log.Fatal(err)
+		}
+	}
+	if info.Mode().IsRegular() {
+		digest := md5File(path)
+		if digest != "" && !(bf.Lookup(digest)) {
+			fmt.Printf("%s is not in filter\n", path)
+		}
+		return
+	}
+	err = filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			fmt.Printf("Error accessing path %q looking up hashes: %v\n", path, err)
+			return err
+		}
+		// We only care about files.
+		if info.Mode().IsRegular() {
+			digest := md5File(path)
+			if !(bf.Lookup(digest)) {
+				fmt.Printf("%s is not in filter\n", path)
+			} else {
+				fmt.Printf("%s is in filter\n", path)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
 }

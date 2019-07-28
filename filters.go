@@ -305,33 +305,3 @@ func updateFilters() {
 		}
 	}
 }
-
-func parseFilters(args []string) {
-	command := args[2]
-	switch command {
-	case "fetch":
-		if len(args) > 3 {
-			target := args[3]
-			fetchFilter(target)
-		} else {
-			usage(args[0])
-		}
-	case "list":
-		config := getConfig()
-		if len(args) > 3 {
-			target := args[3]
-			if target == "remote" {
-				listRemote(config.Repo)
-			} else {
-				listRemote(target)
-			}
-		} else {
-			listLocal(config.HashAlg)
-		}
-	case "update":
-		updateFilters()
-	default:
-		fmt.Printf("Invalid command: %s\n", command)
-		usage(args[0])
-	}
-}
