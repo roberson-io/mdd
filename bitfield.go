@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"math"
 )
 
@@ -47,7 +46,6 @@ func (bf *BitField) SetBit(position int32) {
 	if index == -1 {
 		index += int32(math.Ceil(float64(bf.Size) / 8.0))
 	}
-	fmt.Printf("pos.Byte: %d index: %d position: %d\n", pos.Byte, index, position)
 	bf.Bitfield[index] |= (0x01 << uint32(pos.Bit)) & 0xff
 }
 
