@@ -14,7 +14,7 @@ import (
 // Accuracy calculates a filter's accuracy given
 // size, hash count, and expected number
 // of elements.
-func Accuracy(size, hashCount, elements int) float64 {
+func Accuracy(size, hashCount, elements int32) float64 {
 	s := float64(size)
 	hc := float64(hashCount)
 	e := float64(elements)
@@ -23,27 +23,27 @@ func Accuracy(size, hashCount, elements int) float64 {
 	return 100 - fp*100
 }
 
-func idealSize(expected int, fpRate float64) int {
-	return int(-(float64(expected) * math.Log(fpRate)) / math.Pow(math.Log(2.0), 2))
+func idealSize(expected int32, fpRate float64) int32 {
+	return int32(-(float64(expected) * math.Log(fpRate)) / math.Pow(math.Log(2.0), 2))
 }
 
-func idealHashCount(size, expected int) int {
-	return int((float64(size) / float64(expected)) * math.Log(2))
+func idealHashCount(size, expected int32) int32 {
+	return int32((float64(size) / float64(expected)) * math.Log(2))
 }
 
-func byteSize(size int) int {
-	return int(math.Ceil(float64(size) / 8.0))
+func byteSize(size int32) int32 {
+	return int32(math.Ceil(float64(size) / 8.0))
 }
 
-func byteSizeHuman(size int) string {
+func byteSizeHuman(size int32) string {
 	suffix := [...]string{
 		"bytes", "Kb", "Mb", "Gb", "Tb", "Pb", "Eb", "Zb", "Yb",
 	}
-	var order int
+	var order int32
 	if size != 0 {
-		order = int(math.Log2(math.Ceil(float64(size))/8.0) / 10)
+		order = int32(math.Log2(math.Ceil(float64(size))/8.0) / 10)
 	}
-	human := math.Ceil(float64(size)/8.0) / float64(uint(1)<<uint(order*10))
+	human := math.Ceil(float64(size)/8.0) / float64(uint32(1)<<uint32(order*10))
 	return fmt.Sprintf("%.4f%s", human, suffix[order])
 }
 
@@ -51,14 +51,15 @@ func byteSizeHuman(size int) string {
 // of elements in the Bloom filter and the acceptable rate of false
 // positives. For example, 0.01 will tolerate 0.01% chance of false
 // positives.
-func NewBloomFilter(expectedItems int, fpRate float64) *BloomFilter {
-	bf := new(BloomFilter)
+func NewBloomFilter(expectedItems int32, fpRate float64) BloomFilter {
+	var bf BloomFilter
 	bf.Size = idealSize(expectedItems, fpRate)
 	bf.HashCount = idealHashCount(bf.Size, expectedItems)
-	var filter BitField
-	filter.Bitfield = make([]byte, bf.ByteSize)
-	bf.Filter = filter
 	bf.ByteSize = byteSize(bf.Size)
+	bf.Filter = BitField{
+		Size:     bf.Size,
+		Bitfield: make([]byte, bf.ByteSize),
+	}
 	bf.ByteSizeHuman = byteSizeHuman(bf.Size)
 	return bf
 }
@@ -66,32 +67,34 @@ func NewBloomFilter(expectedItems int, fpRate float64) *BloomFilter {
 // BloomFilter implements Bloom filter. You should probably use
 // NewBloomFilter unless you know what you're doing.
 type BloomFilter struct {
-	Size          int
-	HashCount     int
+	Size          int32
+	HashCount     int32
 	Filter        BitField
-	ByteSize      int
+	ByteSize      int32
 	ByteSizeHuman string
 }
 
 // Add adds an element to the filter.
 func (bf *BloomFilter) Add(element string) {
-	for seed := 0; seed < bf.HashCount; seed++ {
+	for seed := int32(0); seed < bf.HashCount; seed++ {
 		key := []byte(element)
-		result := int(binary.LittleEndian.Uint32(
+		hash := binary.LittleEndian.Uint32(
 			mmh3.Hashx86_32(key, uint32(seed)),
-		)) % bf.Size
+		)
+		result := int32(hash) % bf.Size
 		bf.Filter.SetBit(result)
 	}
 }
 
 // Lookup checks if an element exists in the filter.
 func (bf *BloomFilter) Lookup(element string) bool {
-	for seed := 0; seed < bf.HashCount; seed++ {
+	for seed := int32(0); seed < bf.HashCount; seed++ {
 		key := []byte(element)
-		result := int(binary.LittleEndian.Uint32(
+		hash := binary.LittleEndian.Uint32(
 			mmh3.Hashx86_32(key, uint32(seed)),
-		)) % bf.Size
-		if bf.Filter.GetBit(result) == false {
+		)
+		result := int32(hash) % bf.Size
+		if bf.Filter.GetBit(int32(result)) == false {
 			return false
 		}
 	}
@@ -130,7 +133,7 @@ func (bf *BloomFilter) Load(path string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	bf.Size = int(binary.LittleEndian.Uint64(sizeBytes))
+	bf.Size = int32(binary.LittleEndian.Uint64(sizeBytes))
 	bf.ByteSize = byteSize(bf.Size)
 	bf.ByteSizeHuman = byteSizeHuman(bf.Size)
 
@@ -139,7 +142,7 @@ func (bf *BloomFilter) Load(path string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	bf.HashCount = int(binary.LittleEndian.Uint64(hcBytes))
+	bf.HashCount = int32(binary.LittleEndian.Uint64(hcBytes))
 
 	bitfield := make([]byte, bf.ByteSize)
 	_, err = f.Read(bitfield)

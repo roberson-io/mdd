@@ -50,8 +50,8 @@ func md5File(path string) string {
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
-func countFiles(path string) int {
-	var count int
+func countFiles(path string) int32 {
+	var count int32
 	err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			fmt.Printf("Error accessing path %q while counting files: %v\n", path, err)
@@ -105,7 +105,7 @@ func (p Parser) Calculate() {
 	}
 
 	fmt.Print("[+] Counting files. This may take a while\n")
-	size := 0
+	var size int32
 	for _, file := range files {
 		size += countFiles(file)
 	}
@@ -174,7 +174,7 @@ func (p Parser) FromFile() {
 	}
 
 	fmt.Printf("[+] Counting hashes in %s\n", files)
-	count := 0
+	var count int32
 	for _, hashFile := range files {
 		fmt.Printf("%s\n", hashFile)
 		f, err := os.Open(hashFile)
