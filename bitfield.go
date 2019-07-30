@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"math"
 )
 
@@ -42,7 +43,12 @@ func (bf *BitField) SetBit(position int32) {
 		position += bf.Size
 	}
 	pos := bf.GetPos(position)
-	bf.Bitfield[pos.Byte] |= (0x01 << uint(pos.Bit)) & 0xff
+	index := pos.Byte
+	if index == -1 {
+		index += int32(math.Ceil(float64(bf.Size) / 8.0))
+	}
+	fmt.Printf("pos.Byte: %d index: %d position: %d\n", pos.Byte, index, position)
+	bf.Bitfield[index] |= (0x01 << uint32(pos.Bit)) & 0xff
 }
 
 // UnsetBit sets the bit at specified position to 0.
@@ -57,7 +63,11 @@ func (bf *BitField) GetBit(position int32) bool {
 		position += bf.Size
 	}
 	pos := bf.GetPos(position)
-	contents := bf.Bitfield[pos.Byte] & ((0x01 << uint(pos.Bit)) & 0xff)
+	index := pos.Byte
+	if index == -1 {
+		index += int32(math.Ceil(float64(bf.Size) / 8.0))
+	}
+	contents := bf.Bitfield[index] & ((0x01 << uint(pos.Bit)) & 0xff)
 	return !(contents == 0)
 }
 

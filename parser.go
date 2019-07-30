@@ -3,12 +3,12 @@ package main
 import (
 	"bufio"
 	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"log"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 )
 
@@ -21,7 +21,7 @@ func isMD5(value string) bool {
 	if len([]rune(value)) != 32 {
 		return false
 	}
-	_, err := strconv.ParseUint(value, 16, 64)
+	_, err := hex.DecodeString(value)
 	if err != nil {
 		return false
 	}
