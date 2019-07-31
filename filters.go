@@ -29,13 +29,15 @@ type hashAlgorithm struct {
 	Digest string `json:"digest"`
 }
 
+// LastModifiedISO is the format used in the Python version of this program.
 type filter struct {
-	Description  string        `json:"description"`
-	LastModified time.Time     `json:"last_modified"`
-	Hash         hashAlgorithm `json:"hash,omitempty"`
-	MD5          string        `json:"md5,omitempty"`
-	SHA1         string        `json:"sha1,omitempty"`
-	SHA256       string        `json:"sha256,omitempty"`
+	Description     string        `json:"description"`
+	LastModified    time.Time     `json:"last_modified_rfc3339"`
+	LastModifiedISO string        `json:"last_modified"`
+	Hash            hashAlgorithm `json:"hash,omitempty"`
+	MD5             string        `json:"md5,omitempty"`
+	SHA1            string        `json:"sha1,omitempty"`
+	SHA256          string        `json:"sha256,omitempty"`
 }
 
 func getConfig() mddConfig {
