@@ -78,7 +78,7 @@ func readableFile(path string) bool {
 }
 
 func writeableFile(path string) bool {
-	f, err := os.OpenFile(path, os.O_WRONLY, 0666)
+	f, err := os.Create(path)
 	defer f.Close()
 	if err != nil {
 		return false
