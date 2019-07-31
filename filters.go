@@ -132,13 +132,14 @@ func filterPath() string {
 func getInstalled(hashAlg string) map[string]filter {
 	content, readErr := ioutil.ReadFile("installed.json")
 	if readErr != nil {
-		var installed map[string]filter
+		installed := make(map[string]filter)
 		fileInfo, err := ioutil.ReadDir(filterPath())
 		if err != nil {
 			log.Fatal(err)
 		}
 		for _, file := range fileInfo {
-			f, err := os.Open(file.Name())
+			path := filepath.Join(filterPath(), file.Name())
+			f, err := os.Open(path)
 			if err != nil {
 				log.Fatal(err)
 			}
