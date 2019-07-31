@@ -135,6 +135,7 @@ func getInstalled(hashAlg string) map[string]filter {
 	content, readErr := ioutil.ReadFile("installed.json")
 	if readErr != nil {
 		installed := make(map[string]filter)
+		os.MkdirAll(filterPath(), os.ModePerm)
 		fileInfo, err := ioutil.ReadDir(filterPath())
 		if err != nil {
 			log.Fatal(err)
