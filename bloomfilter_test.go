@@ -115,29 +115,6 @@ func TestAddAndLookup(t *testing.T) {
 	}
 }
 
-/*
-def test_save_and_load(fs):
-    expected_items = 3
-    false_positive_rate = 0.01
-    expected_size = 28
-    fake_dir = '/var/data/'
-    fake_path = fake_dir + 'test_filter'
-    fs.create_dir(fake_dir)
-    bloom_filter = BloomFilter(expected_items, false_positive_rate)
-    assert bloom_filter.size == expected_size
-    bloom_filter.save(fake_path)
-
-    new_expected_items = 5
-    new_false_positive_rate = 0.02
-    new_expected_size = 40
-    new_bloom_filter = BloomFilter(new_expected_items, new_false_positive_rate)
-    assert new_bloom_filter.size == new_expected_size
-
-    # Should be size of original filter
-    new_bloom_filter.load(fake_path)
-    assert new_bloom_filter.size == expected_size
-*/
-
 func TestSaveAndLoad(t *testing.T) {
 	var items int32 = 3
 	var fpRate = 0.01
