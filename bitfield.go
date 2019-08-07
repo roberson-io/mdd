@@ -51,8 +51,15 @@ func (bf *BitField) SetBit(position int32) {
 
 // UnsetBit sets the bit at specified position to 0.
 func (bf *BitField) UnsetBit(position int32) {
+	for position < 0 {
+		position += bf.Size
+	}
 	pos := bf.GetPos(position)
-	bf.Bitfield[pos.Byte] |= ^(0x01 << uint(pos.Bit)) & 0xff
+	index := pos.Byte
+	if index == -1 {
+		index += int32(math.Ceil(float64(bf.Size) / 8.0))
+	}
+	bf.Bitfield[index] &= ^(0x01 << uint32(pos.Bit)) & 0xff
 }
 
 // GetBit retrieves the contents of a bit at a specific location.
@@ -65,20 +72,22 @@ func (bf *BitField) GetBit(position int32) bool {
 	if index == -1 {
 		index += int32(math.Ceil(float64(bf.Size) / 8.0))
 	}
-	contents := bf.Bitfield[index] & ((0x01 << uint(pos.Bit)) & 0xff)
+	contents := bf.Bitfield[index] & ((0x01 << uint32(pos.Bit)) & 0xff)
 	return !(contents == 0)
 }
 
 // Zero sets all bits to zero.
 func (bf *BitField) Zero() {
-	for _, position := range bf.Bitfield {
-		bf.Bitfield[position] = 0x00
+	byteSize := int32(math.Ceil(float64(bf.Size) / 8.0))
+	for pos := int32(0); pos < byteSize; pos++ {
+		bf.Bitfield[pos] = 0x00
 	}
 }
 
 // One sets all bits to one.
 func (bf *BitField) One() {
-	for _, position := range bf.Bitfield {
-		bf.Bitfield[position] = 0xff
+	byteSize := int32(math.Ceil(float64(bf.Size) / 8.0))
+	for pos := int32(0); pos < byteSize; pos++ {
+		bf.Bitfield[pos] = 0xff
 	}
 }
