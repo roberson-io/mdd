@@ -44,7 +44,7 @@ func byteSizeHuman(size int32) string {
 		order = int32(math.Log2(math.Ceil(float64(size))/8.0) / 10)
 	}
 	human := math.Ceil(float64(size)/8.0) / float64(uint32(1)<<uint32(order*10))
-	return fmt.Sprintf("%.4f%s", human, suffix[order])
+	return fmt.Sprintf("%.1f%s", human, suffix[order])
 }
 
 // NewBloomFilter constructs a Bloom filter given the expected number
