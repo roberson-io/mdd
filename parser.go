@@ -67,19 +67,19 @@ func countFiles(path string, fs afero.Fs) int32 {
 
 func readableFile(path string, fs afero.Fs) bool {
 	f, err := fs.Open(path)
-	defer f.Close()
 	if err != nil {
 		return false
 	}
+	defer f.Close()
 	return true
 }
 
 func writeableFile(path string, fs afero.Fs) bool {
 	f, err := fs.Create(path)
-	defer f.Close()
 	if err != nil {
 		return false
 	}
+	defer f.Close()
 	return true
 }
 
