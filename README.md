@@ -8,6 +8,7 @@ manner.
 
 ## Dependencies
 [Go wrapper for MurmurHash3](https://github.com/roberson-io/mmh3)
+[Afero](https://github.com/spf13/afero)
 
 ## Usage
 ### Calculate hashes and store in a new Bloom filter file

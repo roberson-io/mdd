@@ -131,6 +131,7 @@ func filterPath() string {
 	path := filepath.Join(currentDir(), "filters")
 	return path
 }
+
 func getInstalled(hashAlg string) map[string]filter {
 	content, readErr := ioutil.ReadFile("installed.json")
 	if readErr != nil {

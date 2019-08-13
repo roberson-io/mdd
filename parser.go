@@ -8,8 +8,9 @@ import (
 	"io"
 	"log"
 	"os"
-	"path/filepath"
 	"strings"
+
+	"github.com/spf13/afero"
 )
 
 func usage(progName string) {
@@ -28,12 +29,8 @@ func isMD5(value string) bool {
 	return true
 }
 
-func md5First8192(filename string) {
-	return
-}
-
-func md5File(path string) string {
-	f, err := os.Open(path)
+func md5File(path string, fs afero.Fs) string {
+	f, err := fs.Open(path)
 	if os.IsPermission(err) {
 		return ""
 	}
@@ -50,9 +47,9 @@ func md5File(path string) string {
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
-func countFiles(path string) int32 {
+func countFiles(path string, fs afero.Fs) int32 {
 	var count int32
-	err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
+	err := afero.Walk(fs, path, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			fmt.Printf("Error accessing path %q while counting files: %v\n", path, err)
 			return err
@@ -68,8 +65,8 @@ func countFiles(path string) int32 {
 	return count
 }
 
-func readableFile(path string) bool {
-	f, err := os.Open(path)
+func readableFile(path string, fs afero.Fs) bool {
+	f, err := fs.Open(path)
 	defer f.Close()
 	if err != nil {
 		return false
@@ -77,8 +74,8 @@ func readableFile(path string) bool {
 	return true
 }
 
-func writeableFile(path string) bool {
-	f, err := os.Create(path)
+func writeableFile(path string, fs afero.Fs) bool {
+	f, err := fs.Create(path)
 	defer f.Close()
 	if err != nil {
 		return false
@@ -89,6 +86,7 @@ func writeableFile(path string) bool {
 // Parser for command line.
 type Parser struct {
 	Args []string
+	Fs   afero.Fs
 }
 
 // Calculate command parser.
@@ -99,7 +97,7 @@ func (p Parser) Calculate() {
 	}
 	filterFile := p.Args[2]
 	files := p.Args[3:]
-	if !writeableFile(filterFile) {
+	if !writeableFile(filterFile, p.Fs) {
 		fmt.Printf("[-] Unable to open %s for writing\n", filterFile)
 		usage(progName)
 	}
@@ -107,11 +105,11 @@ func (p Parser) Calculate() {
 	fmt.Print("[+] Counting files. This may take a while\n")
 	var size int32
 	for _, file := range files {
-		size += countFiles(file)
+		size += countFiles(file, p.Fs)
 	}
 	fmt.Printf("Counted %d files.\n", size)
 
-	bloomFilter := NewBloomFilter(size, 0.01)
+	bloomFilter := NewBloomFilter(size, 0.01, p.Fs)
 
 	fmt.Print("[+] Calculating hashes.\n")
 
@@ -168,7 +166,7 @@ func (p Parser) FromFile() {
 	}
 	filterFile := p.Args[2]
 	files := p.Args[3:]
-	if !writeableFile(filterFile) {
+	if !writeableFile(filterFile, p.Fs) {
 		fmt.Printf("[-] Unable to open %s for writing\n", filterFile)
 		usage(progName)
 	}
@@ -177,7 +175,7 @@ func (p Parser) FromFile() {
 	var count int32
 	for _, hashFile := range files {
 		fmt.Printf("%s\n", hashFile)
-		f, err := os.Open(hashFile)
+		f, err := p.Fs.Open(hashFile)
 		defer f.Close()
 		if err != nil {
 			log.Fatal(err)
@@ -193,13 +191,13 @@ func (p Parser) FromFile() {
 
 	fmt.Printf("    Counted %d files.\n", count)
 
-	bloomFilter := NewBloomFilter(count, 0.01)
+	bloomFilter := NewBloomFilter(count, 0.01, p.Fs)
 
 	fmt.Printf("[+] Adding hashes from %s\n", files)
 
 	for _, hashFile := range files {
 		fmt.Printf("%s\n", hashFile)
-		f, err := os.Open(hashFile)
+		f, err := p.Fs.Open(hashFile)
 		defer f.Close()
 		if err != nil {
 			log.Fatal(err)
@@ -230,11 +228,11 @@ func (p Parser) Lookup() {
 	}
 	filterFile := p.Args[2]
 	files := p.Args[3:]
-	if !readableFile(filterFile) {
+	if !readableFile(filterFile, p.Fs) {
 		fmt.Printf("[-] Unable to open %s for reading\n", filterFile)
 		usage(progName)
 	}
-	bloomFilter := NewBloomFilter(1, 0.01)
+	bloomFilter := NewBloomFilter(1, 0.01, p.Fs)
 	bloomFilter.Load(filterFile)
 	for _, file := range files {
 		bloomFilter.LookupHashes(file)

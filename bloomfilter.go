@@ -6,9 +6,9 @@ import (
 	"log"
 	"math"
 	"os"
-	"path/filepath"
 
 	"github.com/roberson-io/mmh3"
+	"github.com/spf13/afero"
 )
 
 // Accuracy calculates a filter's accuracy given
@@ -19,7 +19,6 @@ func Accuracy(size, hashCount, elements int32) float64 {
 	hc := float64(hashCount)
 	e := float64(elements)
 	fp := math.Pow(1-math.Pow((1-1/s), (hc*e)), hc)
-	fmt.Printf("FALSE: %.4f\n", fp)
 	return 100 - fp*100
 }
 
@@ -51,7 +50,7 @@ func byteSizeHuman(size int32) string {
 // of elements in the Bloom filter and the acceptable rate of false
 // positives. For example, 0.01 will tolerate 0.01% chance of false
 // positives.
-func NewBloomFilter(expectedItems int32, fpRate float64) BloomFilter {
+func NewBloomFilter(expectedItems int32, fpRate float64, fs afero.Fs) BloomFilter {
 	var bf BloomFilter
 	bf.Size = idealSize(expectedItems, fpRate)
 	bf.HashCount = idealHashCount(bf.Size, expectedItems)
@@ -61,6 +60,7 @@ func NewBloomFilter(expectedItems int32, fpRate float64) BloomFilter {
 		Bitfield: make([]byte, bf.ByteSize),
 	}
 	bf.ByteSizeHuman = byteSizeHuman(bf.Size)
+	bf.Fs = fs
 	return bf
 }
 
@@ -72,6 +72,7 @@ type BloomFilter struct {
 	Filter        BitField
 	ByteSize      int32
 	ByteSizeHuman string
+	Fs            afero.Fs
 }
 
 // Add adds an element to the filter.
@@ -103,7 +104,7 @@ func (bf *BloomFilter) Lookup(element string) bool {
 
 // Save saves the filter's current state to a file.
 func (bf *BloomFilter) Save(path string) {
-	f, err := os.Create(path)
+	f, err := bf.Fs.Create(path)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -122,7 +123,7 @@ func (bf *BloomFilter) Save(path string) {
 
 // Load loads a saved filter.
 func (bf *BloomFilter) Load(path string) {
-	f, err := os.Open(path)
+	f, err := bf.Fs.Open(path)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -156,27 +157,27 @@ func (bf *BloomFilter) Load(path string) {
 // CalculateHashes calculates MD5 hashes of all files within a
 // directory, adding them to a Bloom filter.
 func (bf *BloomFilter) CalculateHashes(path string) {
-	info, err := os.Stat(path)
+	info, err := bf.Fs.Stat(path)
 	if err != nil {
 		if !(os.IsPermission(err)) {
 			log.Fatal(err)
 		}
 	}
 	if info.Mode().IsRegular() {
-		digest := md5File(path)
+		digest := md5File(path, bf.Fs)
 		if digest != "" {
 			fmt.Printf("  %s    %s\n", path, digest)
 		}
 		return
 	}
-	err = filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
+	err = afero.Walk(bf.Fs, path, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			fmt.Printf("Error accessing path %q calculating hashes: %v\n", path, err)
 			return err
 		}
 		// We only care about files.
 		if info.Mode().IsRegular() {
-			digest := md5File(path)
+			digest := md5File(path, bf.Fs)
 			if digest != "" {
 				fmt.Printf("  %s    %s\n", path, digest)
 				bf.Add(digest)
@@ -194,27 +195,27 @@ func (bf *BloomFilter) CalculateHashes(path string) {
 // LookupHashes determines if files within a directory have
 // hashes within the Bloom filter.
 func (bf *BloomFilter) LookupHashes(path string) {
-	info, err := os.Stat(path)
+	info, err := bf.Fs.Stat(path)
 	if err != nil {
 		if !(os.IsPermission(err)) {
 			log.Fatal(err)
 		}
 	}
 	if info.Mode().IsRegular() {
-		digest := md5File(path)
+		digest := md5File(path, bf.Fs)
 		if digest != "" && !(bf.Lookup(digest)) {
 			fmt.Printf("%s is not in filter\n", path)
 		}
 		return
 	}
-	err = filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
+	err = afero.Walk(bf.Fs, path, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			fmt.Printf("Error accessing path %q looking up hashes: %v\n", path, err)
 			return err
 		}
 		// We only care about files.
 		if info.Mode().IsRegular() {
-			digest := md5File(path)
+			digest := md5File(path, bf.Fs)
 			if !(bf.Lookup(digest)) {
 				fmt.Printf("%s is not in filter\n", path)
 			} else {
