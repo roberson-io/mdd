@@ -7,8 +7,8 @@ manner.
 [The original version](https://github.com/droberson/million_dollar_dream) of this tool was written in Python.
 
 ## Dependencies
-[Go wrapper for MurmurHash3](https://github.com/roberson-io/mmh3)
-[Afero](https://github.com/spf13/afero)
+- [Go wrapper for MurmurHash3](https://github.com/roberson-io/mmh3)
+- [Afero](https://github.com/spf13/afero)
 
 ## Usage
 ### Calculate hashes and store in a new Bloom filter file
